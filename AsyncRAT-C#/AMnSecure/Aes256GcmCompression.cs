@@ -8,138 +8,148 @@ using Org.BouncyCastle.Crypto.Parameters;
 
 namespace AMnSecure
 {
-    public static class Aes256GcmCompression
+    public class AesAdvancedCompression
     {
-        private const int SaltSize = 32;        // PBKDF2 salt
-        private const int Iterations = 50000;   // PBKDF2 iterations
-        private const int KeySize = 32;         // 32 bytes = 256 bits
-        private const int NonceSize = 12;       // GCM recommended nonce size
-        private const int TagSize = 16;         // 16 bytes = 128-bit tag
+        private const int SaltSize = 32;
+        private const int Iterations = 50000;
+        private const int KeySize = 32;
 
         public static string EncryptBase64(byte[] payload, string password)
         {
-            if (payload == null) throw new ArgumentNullException(nameof(payload));
-            if (password == null) throw new ArgumentNullException(nameof(password));
+            // Génération d'un sel plus grand pour plus de sécurité
+            var salt = new byte[SaltSize];
+            using (var rng = new RNGCryptoServiceProvider())
+            {
+                rng.GetBytes(salt);
+            }
 
-            byte[] salt = RandomBytes(SaltSize);
-            byte[] key = DeriveKey(password, salt, Iterations, KeySize);
+            // Dérivation de clé renforcée
+            using (var keyDerivationFunction = new Rfc2898DeriveBytes(password, salt, Iterations))
+            {
+                var key = keyDerivationFunction.GetBytes(KeySize);
+                var additionalEntropy = keyDerivationFunction.GetBytes(16); // Entropie supplémentaire pour l'IV
 
-            byte[] nonce = RandomBytes(NonceSize);
+                using (var aes = new AesManaged()) // AesManaged au lieu de RijndaelManaged
+                {
+                    aes.KeySize = 256;
+                    aes.BlockSize = 128;
+                    aes.Key = key;
 
-            // AES-GCM: chiffrement + tag d'intégrité (pas besoin de HMAC séparé)
-            var gcm = new GcmBlockCipher(new Org.BouncyCastle.Crypto.Engines.AesEngine());
-            var aeadParams = new AeadParameters(new KeyParameter(key), TagSize * 8, nonce, associatedText: null);
+                    // Génération d'IV avec entropie supplémentaire
+                    using (var hmac = new HMACSHA256(additionalEntropy))
+                    {
+                        aes.IV = hmac.ComputeHash(salt).Take(16).ToArray();
+                    }
 
-            gcm.Init(true, aeadParams);
+                    aes.Mode = CipherMode.CBC;
+                    aes.Padding = PaddingMode.PKCS7;
 
-            byte[] cipherWithTag = new byte[gcm.GetOutputSize(payload.Length)];
-            int len = gcm.ProcessBytes(payload, 0, payload.Length, cipherWithTag, 0);
-            len += gcm.DoFinal(cipherWithTag, len);
+                    byte[] encryptedData;
+                    using (var msEncrypt = new MemoryStream())
+                    {
+                        using (var cryptoStream =
+                               new CryptoStream(msEncrypt, aes.CreateEncryptor(), CryptoStreamMode.Write))
+                        using (var hmacStream = new HMACSHA256(key)) // HMAC pour l'intégrité
+                        {
+                            cryptoStream.Write(payload, 0, payload.Length);
+                            cryptoStream.FlushFinalBlock();
+                            encryptedData = msEncrypt.ToArray();
 
-            // BouncyCastle renvoie ciphertext||tag (tag à la fin)
-            if (cipherWithTag.Length < TagSize)
-                throw new CryptographicException("Sortie GCM invalide.");
+                            // Calcul du HMAC sur les données chiffrées
+                            var hmacValue = hmacStream.ComputeHash(encryptedData);
 
-            byte[] ciphertext = cipherWithTag.Take(cipherWithTag.Length - TagSize).ToArray();
-            byte[] tag = cipherWithTag.Skip(cipherWithTag.Length - TagSize).ToArray();
+                            // Assemblage final : sel + IV + HMAC + données chiffrées
+                            var result =
+                                new byte[salt.Length + aes.IV.Length + hmacValue.Length + encryptedData.Length];
+                            Buffer.BlockCopy(salt, 0, result, 0, salt.Length);
+                            Buffer.BlockCopy(aes.IV, 0, result, salt.Length, aes.IV.Length);
+                            Buffer.BlockCopy(hmacValue, 0, result, salt.Length + aes.IV.Length, hmacValue.Length);
+                            Buffer.BlockCopy(encryptedData, 0, result, salt.Length + aes.IV.Length + hmacValue.Length,
+                                encryptedData.Length);
 
-            // Assemblage final : salt + nonce + tag + ciphertext
-            byte[] result = new byte[salt.Length + nonce.Length + tag.Length + ciphertext.Length];
-            Buffer.BlockCopy(salt, 0, result, 0, salt.Length);
-            Buffer.BlockCopy(nonce, 0, result, salt.Length, nonce.Length);
-            Buffer.BlockCopy(tag, 0, result, salt.Length + nonce.Length, tag.Length);
-            Buffer.BlockCopy(ciphertext, 0, result, salt.Length + nonce.Length + tag.Length, ciphertext.Length);
-
-            return Convert.ToBase64String(result);
+                            return Convert.ToBase64String(result);
+                        }
+                    }
+                }
+            }
         }
 
         public static byte[] Decrypt(string encryptedText, string password)
         {
-            if (encryptedText == null) throw new ArgumentNullException(nameof(encryptedText));
-            if (password == null) throw new ArgumentNullException(nameof(password));
+            var encryptedBytes = Convert.FromBase64String(encryptedText);
 
-            byte[] data = Convert.FromBase64String(encryptedText);
+            if (encryptedBytes.Length < SaltSize + 16 + 32) // Vérification de la taille minimale
+                throw new CryptographicException("Données chiffrées invalides");
 
-            int minLen = SaltSize + NonceSize + TagSize + 1;
-            if (data.Length < minLen)
-                throw new CryptographicException("Données chiffrées invalides (trop courtes).");
+            var salt = encryptedBytes.Take(SaltSize).ToArray();
+            var iv = encryptedBytes.Skip(SaltSize).Take(16).ToArray();
+            var hmacValue = encryptedBytes.Skip(SaltSize + 16).Take(32).ToArray();
+            var cipherText = encryptedBytes.Skip(SaltSize + 16 + 32).ToArray();
 
-            byte[] salt = data.Take(SaltSize).ToArray();
-            byte[] nonce = data.Skip(SaltSize).Take(NonceSize).ToArray();
-            byte[] tag = data.Skip(SaltSize + NonceSize).Take(TagSize).ToArray();
-            byte[] ciphertext = data.Skip(SaltSize + NonceSize + TagSize).ToArray();
-
-            byte[] key = DeriveKey(password, salt, Iterations, KeySize);
-
-            // Pour déchiffrer avec BouncyCastle, on redonne ciphertext||tag
-            byte[] cipherWithTag = new byte[ciphertext.Length + tag.Length];
-            Buffer.BlockCopy(ciphertext, 0, cipherWithTag, 0, ciphertext.Length);
-            Buffer.BlockCopy(tag, 0, cipherWithTag, ciphertext.Length, tag.Length);
-
-            try
+            using (var keyDerivationFunction = new Rfc2898DeriveBytes(password, salt, Iterations))
             {
-                var gcm = new GcmBlockCipher(new Org.BouncyCastle.Crypto.Engines.AesEngine());
-                var aeadParams = new AeadParameters(new KeyParameter(key), TagSize * 8, nonce, associatedText: null);
+                var key = keyDerivationFunction.GetBytes(KeySize);
 
-                gcm.Init(false, aeadParams);
+                // Vérification de l'intégrité
+                using (var hmac = new HMACSHA256(key))
+                {
+                    var computedHmac = hmac.ComputeHash(cipherText);
+                    if (!computedHmac.SequenceEqual(hmacValue))
+                        throw new CryptographicException("L'intégrité des données a été compromise");
+                }
 
-                byte[] plaintext = new byte[gcm.GetOutputSize(cipherWithTag.Length)];
-                int len = gcm.ProcessBytes(cipherWithTag, 0, cipherWithTag.Length, plaintext, 0);
-                len += gcm.DoFinal(plaintext, len);
+                using (var aes = new AesManaged())
+                {
+                    aes.KeySize = 256;
+                    aes.BlockSize = 128;
+                    aes.Key = key;
+                    aes.IV = iv;
+                    aes.Mode = CipherMode.CBC;
+                    aes.Padding = PaddingMode.PKCS7;
 
-                // Ajuster à la taille réelle
-                if (len != plaintext.Length)
-                    Array.Resize(ref plaintext, len);
-
-                return plaintext;
-            }
-            catch (Exception ex)
-            {
-                // Typiquement: mauvais password OU données modifiées (tag invalide)
-                throw new CryptographicException("Échec du déchiffrement (mot de passe incorrect ou données corrompues).", ex);
+                    try
+                    {
+                        using (var msDecrypt = new MemoryStream(cipherText))
+                        using (var cryptoStream =
+                               new CryptoStream(msDecrypt, aes.CreateDecryptor(), CryptoStreamMode.Read))
+                        using (var resultStream = new MemoryStream())
+                        {
+                            cryptoStream.CopyTo(resultStream);
+                            return resultStream.ToArray();
+                        }
+                    }
+                    catch (CryptographicException ex)
+                    {
+                        throw new CryptographicException(
+                            "Échec du déchiffrement - Mot de passe incorrect ou données corrompues", ex);
+                    }
+                }
             }
         }
 
-        // Optionnel : compression comme ton exemple (GZip)
+        // Méthodes de compression inchangées...
         public static byte[] Compress(byte[] data)
         {
-            if (data == null) throw new ArgumentNullException(nameof(data));
-
-            using (var ms = new MemoryStream())
+            using (var memoryStream = new MemoryStream())
             {
-                using (var gzip = new GZipStream(ms, CompressionMode.Compress, true))
+                using (var gzipStream = new GZipStream(memoryStream, CompressionMode.Compress, true))
                 {
-                    gzip.Write(data, 0, data.Length);
+                    gzipStream.Write(data, 0, data.Length);
                 }
-                return ms.ToArray();
+
+                return memoryStream.ToArray();
             }
         }
 
         public static byte[] Decompress(byte[] compressedData)
         {
-            if (compressedData == null) throw new ArgumentNullException(nameof(compressedData));
-
-            using (var input = new MemoryStream(compressedData))
-            using (var output = new MemoryStream())
-            using (var gzip = new GZipStream(input, CompressionMode.Decompress))
+            using (var compressedStream = new MemoryStream(compressedData))
+            using (var decompressedStream = new MemoryStream())
+            using (var gzipStream = new GZipStream(compressedStream, CompressionMode.Decompress))
             {
-                gzip.CopyTo(output);
-                return output.ToArray();
+                gzipStream.CopyTo(decompressedStream);
+                return decompressedStream.ToArray();
             }
-        }
-
-        private static byte[] DeriveKey(string password, byte[] salt, int iterations, int keyBytes)
-        {
-            using (var kdf = new Rfc2898DeriveBytes(password, salt, iterations))
-                return kdf.GetBytes(keyBytes);
-        }
-
-        private static byte[] RandomBytes(int count)
-        {
-            var bytes = new byte[count];
-            using (var rng = new RNGCryptoServiceProvider())
-                rng.GetBytes(bytes);
-            return bytes;
         }
     }
 }
