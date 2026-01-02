@@ -3,8 +3,6 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Security.Cryptography;
-using Org.BouncyCastle.Crypto.Modes;
-using Org.BouncyCastle.Crypto.Parameters;
 
 namespace AMnSecure
 {
@@ -14,6 +12,9 @@ namespace AMnSecure
         private const int Iterations = 50000;
         private const int KeySize = 32;
 
+        //Stub = Decompress > Decrypt
+        //Server = Encrypt > Compress
+        
         public static string EncryptBase64(byte[] payload, string password)
         {
             // Génération d'un sel plus grand pour plus de sécurité

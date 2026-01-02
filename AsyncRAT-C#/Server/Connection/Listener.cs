@@ -4,7 +4,6 @@ using System;
 using System.Windows.Forms;
 using System.Drawing;
 using Server.Handle_Packet;
-using System.Diagnostics;
 
 namespace Server.Connection
 {

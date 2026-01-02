@@ -44,6 +44,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SecureByAMn", "SecureByAMn\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AMnSecure", "AMnSecure\AMnSecure.csproj", "{BA345850-C26C-45AD-94D9-82DB83260842}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Debugger", "Debugger\Debugger.csproj", "{3F8191BE-C90E-4294-B117-431889D9ADD8}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -122,6 +124,10 @@ Global
 		{BA345850-C26C-45AD-94D9-82DB83260842}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{BA345850-C26C-45AD-94D9-82DB83260842}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{BA345850-C26C-45AD-94D9-82DB83260842}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3F8191BE-C90E-4294-B117-431889D9ADD8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3F8191BE-C90E-4294-B117-431889D9ADD8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3F8191BE-C90E-4294-B117-431889D9ADD8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3F8191BE-C90E-4294-B117-431889D9ADD8}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

