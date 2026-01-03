@@ -2,9 +2,9 @@
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace SecureByAMn.BypassSecurity
+namespace Client.Bypass
 {
-    public class AmsiBypass
+    public class Amsi
     {
         [DllImport("kernel32")]
         private static extern IntPtr GetProcAddress(

@@ -11,13 +11,17 @@ namespace AMnSecure.bypass_security.Obfuscation
 
         public static void Run_NETReactor(string fileIn, string pathOut)
         {
+            string commandsMinimum =
+                " -embed 1 -obfuscate_public_types 1 -obfuscation 1 -debug 1 -control_flow 1 -flow_level 4 -stringencryption 1 -resourceencryption -resourcecompression max -virtualization 1 -necrobit 1 -targetfile ";
+            string commandsFull =
+                " -embed 1 -obfuscate_public_types 1 -obfuscation 1 -suppressildasm 1 -antitamp 1 -anti_debug 1 -hide_calls 1 -control_flow 1 -flow_level 9 -stringencryption 1 -resourceencryption 1 -resourcecompression max -virtualization 1 -necrobit 1 -targetfile ";
             Init();
             // Chemin vers l'exécutable dotNET_Reactor
             var reactorPath = Path.Combine(NetReactorDirectory, "dotNET_Reactor.exe");
 
             // Créez une string de commande pour transmettre l'entrée et la sortie
             var commandArgs = "-file " + fileIn +
-                              " -embed 1 -obfuscate_public_types 1 -obfuscation 1 -suppressildasm 1 -antitamp 1 -control_flow 1 -flow_level 9 -stringencryption 1 -resourceencryption 1 -resourcecompression max -targetfile " +
+                              commandsMinimum  +
                               pathOut + "";
 
             // Configurez le Process
@@ -44,7 +48,7 @@ namespace AMnSecure.bypass_security.Obfuscation
                     if (!string.IsNullOrEmpty(args.Data))
                         Console.WriteLine($"Error: {args.Data}");
                 };
-
+                
                 process.WaitForExit();
                 File.Delete(fileIn);
             }

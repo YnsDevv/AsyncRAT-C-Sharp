@@ -342,6 +342,7 @@ namespace Server.Forms
             this.textFilename.Name = "textFilename";
             this.textFilename.Size = new System.Drawing.Size(241, 22);
             this.textFilename.TabIndex = 5;
+            this.textFilename.TextChanged += new System.EventHandler(this.textFilename_TextChanged);
             // 
             // label3
             // 

